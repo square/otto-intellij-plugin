@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.squareup.ideaplugin.dagger;
+package com.squareup.ideaplugin.otto;
 
 import com.intellij.ui.ActiveComponent;
 import org.jetbrains.annotations.NotNull;
