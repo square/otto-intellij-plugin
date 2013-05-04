@@ -1,4 +1,4 @@
-package com.squareup.ideaplugin.otto;
+package com.squareup.ideaplugin.dagger;
 
 import com.intellij.usages.Usage;
 

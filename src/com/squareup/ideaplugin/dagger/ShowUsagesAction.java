@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.squareup.ideaplugin.otto;
+package com.squareup.ideaplugin.dagger;
 
 import com.intellij.CommonBundle;
 import com.intellij.codeInsight.hint.HintManager;
