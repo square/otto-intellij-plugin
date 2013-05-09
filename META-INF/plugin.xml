@@ -42,9 +42,5 @@
   <extensions defaultExtensionNs="com.intellij">
     <codeInsight.lineMarkerProvider language="JAVA"
         implementationClass="com.squareup.ideaplugin.otto.OttoLineMarkerProvider"/>
-    <!--<codeInsight.lineMarkerProvider language="JAVA"-->
-    <!--implementationClass="com.squareup.ideaplugin.DaggerLineMarkerProvider"/>-->
-    <!--<codeInsight.lineMarkerProvider language="JAVA"-->
-    <!--implementationClass="com.squareup.ideaplugin.RobolectricLineMarkerProvider"/>-->
   </extensions>
 </idea-plugin>

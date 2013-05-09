@@ -1,24 +1,25 @@
 package com.squareup.ideaplugin.otto;
 
 import com.intellij.psi.PsiAnnotation;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiModifierList;
+import com.intellij.psi.PsiType;
 
 public class PsiConsultantImpl {
 
-  static PsiAnnotation findInjectAnnotation(PsiField field) {
-    PsiModifierList modifiers = field.getModifierList();
-    if (modifiers != null) {
-      PsiAnnotation[] annotations = modifiers.getAnnotations();
-      for (PsiAnnotation annotation : annotations) {
-        if (annotation.getText().matches("@Inject")) {
-          return annotation;
-        }
-      }
+  static PsiMethodCallExpression findMethodCall(PsiElement element) {
+    if (element == null) {
+      return null;
     }
-    return null;
+    else if (element instanceof PsiMethodCallExpression) {
+      return (PsiMethodCallExpression) element;
+    } else {
+      return findMethodCall(element.getParent());
+    }
   }
 
   static PsiAnnotation findAnnotationOnMethod(PsiMethod psiMethod, String annotationName) {
@@ -27,6 +28,13 @@ public class PsiConsultantImpl {
       if (annotationName.equals(psiAnnotation.getQualifiedName())) {
         return psiAnnotation;
       }
+    }
+    return null;
+  }
+
+  static PsiClass getClass(PsiType psiType) {
+    if (psiType instanceof PsiClassType) {
+      return ((PsiClassType) psiType).resolve();
     }
     return null;
   }
