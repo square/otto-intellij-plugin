@@ -5,7 +5,9 @@ import com.intellij.codeInsight.daemon.GutterIconNavigationHandler;
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.codeInsight.daemon.LineMarkerProvider;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.IconLoader;
+import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
@@ -18,6 +20,7 @@ import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterList;
 import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeElement;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiUtilBase;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.usages.Usage;
@@ -102,6 +105,7 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
               PsiUtilBase.findEditor(eventPost), MAX_USAGES);
         }
       };
+
   public static final GutterIconNavigationHandler<PsiClass> SHOW_ALL =
       new GutterIconNavigationHandler<PsiClass>() {
         @Override public void navigate(MouseEvent e, PsiClass psiClass) {
@@ -109,20 +113,45 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
               new RelativePoint(e), PsiUtilBase.findEditor(psiClass), MAX_USAGES);
         }
       };
+
   public static final GutterIconNavigationHandler<PsiElement> SHOW_INSTANTIATIONS_AND_PRODUCERS =
       new GutterIconNavigationHandler<PsiElement>() {
-        @Override public void navigate(MouseEvent mouseEvent, PsiElement subscribeMethod) {
-          PsiTypeElement parameterTypeElement = getMethodParameter((PsiMethod) subscribeMethod);
-
+        @Override public void navigate(final MouseEvent mouseEvent, final PsiElement subscribeMethod) {
+          final PsiTypeElement parameterTypeElement = getMethodParameter((PsiMethod) subscribeMethod);
           if (parameterTypeElement.getType() instanceof PsiClassType) {
-            System.out.println("looking for parameterTypeElement = " + parameterTypeElement);
-            PsiClass eventClass = ((PsiClassType) parameterTypeElement.getType()).resolve();
-            new ShowUsagesAction(INSTANTIATIONS_OR_PRODUCERS).startFindUsages(eventClass,
-                new RelativePoint(mouseEvent), PsiUtilBase.findEditor(parameterTypeElement),
-                MAX_USAGES);
+            final PsiClass eventClass = ((PsiClassType) parameterTypeElement.getType()).resolve();
+            PickAction.startPicker(new RelativePoint(mouseEvent), new PickAction.Callback() {
+              @Override public void onTypeChose(PickAction.Type type) {
+                if (type.equals(PickAction.Type.PRODUCER)) {
+                  new ShowUsagesAction(PRODUCERS).startFindUsages(eventClass,
+                      new RelativePoint(mouseEvent), PsiUtilBase.findEditor(parameterTypeElement),
+                      MAX_USAGES);
+                } else if (type.equals(PickAction.Type.EVENT_POST)) {
+                  PsiMethod ottoBusMethod = getOttoBusMethod(subscribeMethod);
+                  new ShowUsagesAction(new BusPostDecider(eventClass)).startFindUsages(
+                      ottoBusMethod, new RelativePoint(mouseEvent),
+                      PsiUtilBase.findEditor(subscribeMethod), MAX_USAGES);
+                }
+              }
+            });
           }
         }
       };
+
+  private static PsiMethod getOttoBusMethod(PsiElement subscribeMethod) {
+    Project project = subscribeMethod.getProject();
+    JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(project);
+    GlobalSearchScope globalSearchScope = GlobalSearchScope.allScope(project);
+
+    PsiClass lazyClass =
+        javaPsiFacade.findClass(OttoProjectHandler.BUS_CLASS_NAME, globalSearchScope);
+    for (PsiMethod psiMethod : lazyClass.getMethods()) {
+      if (psiMethod.getName().equals("post")) {
+        return psiMethod;
+      }
+    }
+    return null;
+  }
 
   private static final GutterIconNavigationHandler<PsiElement> SHOW_SUBSCRIBERS_FROM_PRODUCERS =
       new GutterIconNavigationHandler<PsiElement>() {

@@ -44,6 +44,8 @@ import org.jetbrains.annotations.NotNull;
 public class OttoProjectHandler extends AbstractProjectComponent {
   public static final String SUBSCRIBE_CLASS_NAME = "com.squareup.otto.Subscribe";
   public static final String PRODUCER_CLASS_NAME = "com.squareup.otto.Produce";
+  public static final String BUS_CLASS_NAME = "com.squareup.otto.Bus";
+
   private static final Key<OttoProjectHandler> KEY = Key.create(OttoProjectHandler.class.getName());
   public static final Logger LOGGER = Logger.getInstance(OttoProjectHandler.class);
 
@@ -165,13 +167,13 @@ public class OttoProjectHandler extends AbstractProjectComponent {
       PsiFile psiFile = PsiManager.getInstance(myProject).findFile(virtualFile);
       if (psiFile == null) throw new IllegalStateException("huh? " + virtualFile);
       if (psiFile.getFileType() instanceof JavaFileType) {
-        System.out.println("DOING SEARCH");
 
         final long startTime = System.currentTimeMillis();
         psiFile.accept(new PsiRecursiveElementVisitor() {
           @Override public void visitElement(PsiElement element) {
             if (element instanceof PsiMethod
-                && PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element, SUBSCRIBE_CLASS_NAME) != null) {
+                && PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element,
+                SUBSCRIBE_CLASS_NAME) != null) {
               maybeAddSubscriberMethod((PsiMethod) element);
             } else {
               super.visitElement(element);
@@ -223,16 +225,6 @@ public class OttoProjectHandler extends AbstractProjectComponent {
 
   @Override public void projectClosed() {
     if (listener != null) psiManager.removePsiTreeChangeListener(listener);
-  }
-
-  private static PsiMethod findMethod(PsiElement element) {
-    while (element != null && !(element instanceof PsiMethod)) {
-      element = element.getParent();
-      if (element instanceof PsiClass) {
-        return null;
-      }
-    }
-    return (PsiMethod) element;
   }
 
   private class MyPsiTreeChangeAdapter extends PsiTreeChangeAdapter {
