@@ -1,7 +1,7 @@
-Otto Intellij Plugin
-==========
+Otto IntelliJ Plugin
+====================
 
-Plugin to navigate between events posted by Square's Otto event bus/
+Plugin to navigate between events posted by [Otto][1].
 
 
 Download
@@ -26,3 +26,6 @@ License
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+
+
+[1]: http://square.github.io/otto/
