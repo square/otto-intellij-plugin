@@ -112,21 +112,21 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
 
   public static final GutterIconNavigationHandler<PsiElement> SHOW_INSTANTIATIONS_AND_PRODUCERS =
       new GutterIconNavigationHandler<PsiElement>() {
-        @Override public void navigate(final MouseEvent mouseEvent, final PsiElement subscribeMethod) {
-          final PsiTypeElement parameterTypeElement = getMethodParameter((PsiMethod) subscribeMethod);
+        @Override public void navigate(final MouseEvent mouseEvent, final PsiElement psiElement) {
+          final PsiTypeElement parameterTypeElement = getMethodParameter((PsiMethod) psiElement);
           if (parameterTypeElement.getType() instanceof PsiClassType) {
             final PsiClass eventClass = ((PsiClassType) parameterTypeElement.getType()).resolve();
             PickAction.startPicker(new RelativePoint(mouseEvent), new PickAction.Callback() {
               @Override public void onTypeChose(PickAction.Type type) {
                 if (type.equals(PickAction.Type.PRODUCER)) {
                   new ShowUsagesAction(PRODUCERS).startFindUsages(eventClass,
-                      new RelativePoint(mouseEvent), PsiUtilBase.findEditor(parameterTypeElement),
+                      new RelativePoint(mouseEvent), PsiUtilBase.findEditor(psiElement),
                       MAX_USAGES);
                 } else if (type.equals(PickAction.Type.EVENT_POST)) {
-                  PsiMethod ottoBusMethod = getOttoBusMethod(subscribeMethod);
+                  PsiMethod ottoBusMethod = getOttoBusMethod(psiElement);
                   new ShowUsagesAction(new BusPostDecider(eventClass)).startFindUsages(
                       ottoBusMethod, new RelativePoint(mouseEvent),
-                      PsiUtilBase.findEditor(subscribeMethod), MAX_USAGES);
+                      PsiUtilBase.findEditor(psiElement), MAX_USAGES);
                 }
               }
             });
