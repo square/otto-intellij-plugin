@@ -63,7 +63,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
         ((FindManagerImpl) FindManager.getInstance(project)).getFindUsagesManager();
     this.psiManager = psiManager;
     project.putUserData(KEY, this);
-    System.out.println("OttoProjectHandler initialized");
+    //System.out.println("OttoProjectHandler initialized");
   }
 
   public static OttoProjectHandler get(Project project) {

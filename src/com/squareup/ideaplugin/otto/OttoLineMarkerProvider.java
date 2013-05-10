@@ -15,6 +15,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiIdentifier;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
 import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiNewExpression;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterList;
@@ -60,12 +61,6 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
     }
   };
 
-  public static final Decider INSTANTIATIONS_OR_PRODUCERS = new Decider() {
-    @Override public boolean shouldShow(Usage usage) {
-      return INSTANTIATIONS.shouldShow(usage) || PRODUCERS.shouldShow(usage);
-    }
-  };
-
   public static final Decider SUBSCRIBERS = new Decider() {
     @Override public boolean shouldShow(Usage usage) {
       PsiElement element = ((UsageInfo2UsageAdapter) usage).getElement();
@@ -96,13 +91,14 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
 
   public static final int MAX_USAGES = 100;
 
-  public static final GutterIconNavigationHandler<PsiNewExpression> SHOW_SUBSCRIBERS =
-      new GutterIconNavigationHandler<PsiNewExpression>() {
-        @Override public void navigate(MouseEvent e, PsiNewExpression eventPost) {
-          PsiClass eventClass = ((PsiClassType) eventPost.getType()).resolve();
-          System.out.println("looking for eventClass = " + eventClass);
-          new ShowUsagesAction(SUBSCRIBERS).startFindUsages(eventClass, new RelativePoint(e),
-              PsiUtilBase.findEditor(eventPost), MAX_USAGES);
+  public static final GutterIconNavigationHandler<PsiElement> SHOW_SUBSCRIBERS =
+      new GutterIconNavigationHandler<PsiElement>() {
+        @Override public void navigate(MouseEvent e, PsiElement psiElement) {
+          if (psiElement instanceof PsiClass) {
+            PsiClass eventClass = (PsiClass) psiElement;
+            new ShowUsagesAction(SUBSCRIBERS).startFindUsages(eventClass, new RelativePoint(e),
+                PsiUtilBase.findEditor(eventClass), MAX_USAGES);
+          }
         }
       };
 
@@ -143,11 +139,13 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
     JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(project);
     GlobalSearchScope globalSearchScope = GlobalSearchScope.allScope(project);
 
-    PsiClass lazyClass =
+    PsiClass busClass =
         javaPsiFacade.findClass(OttoProjectHandler.BUS_CLASS_NAME, globalSearchScope);
-    for (PsiMethod psiMethod : lazyClass.getMethods()) {
-      if (psiMethod.getName().equals("post")) {
-        return psiMethod;
+    if (busClass != null) {
+      for (PsiMethod psiMethod : busClass.getMethods()) {
+        if (psiMethod.getName().equals("post")) {
+          return psiMethod;
+        }
       }
     }
     return null;
@@ -159,7 +157,7 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
           if (psiElement instanceof PsiMethod) {
             PsiMethod psiMethod = (PsiMethod) psiElement;
             PsiTypeElement returnTypeElement = psiMethod.getReturnTypeElement();
-            System.out.println("looking for returnTypeElement = " + returnTypeElement);
+            //System.out.println("looking for returnTypeElement = " + returnTypeElement);
             PsiClass eventClass = ((PsiClassType) returnTypeElement.getType()).resolve();
 
             new ShowUsagesAction(SUBSCRIBERS).startFindUsages(eventClass,
@@ -203,23 +201,18 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
           }
         }
       }
-    } else if (element instanceof PsiNewExpression) {
-      PsiNewExpression psiNewExpression = (PsiNewExpression) element;
-      PsiType psiType = psiNewExpression.getType();
-      if (psiType != null) {
-        String className = psiType.getCanonicalText();
-        OttoProjectHandler ottoProjectHandler = OttoProjectHandler.get(element.getProject());
+    } else if (element instanceof PsiMethodCallExpression) {
+      PsiMethodCallExpression expression = (PsiMethodCallExpression) element;
+      PsiMethod psiMethod = expression.resolveMethod();
+      if (psiMethod != null) {
+        if (psiMethod.equals(getOttoBusMethod(element))) {
+          PsiType[] expressionTypes = expression.getArgumentList().getExpressionTypes();
+          if (expressionTypes.length > 0) {
+            PsiClass eventClass = PsiConsultantImpl.getClass(expressionTypes[0]);
+            return new LineMarkerInfo<PsiElement>(eventClass, element.getTextRange(), ICON,
+                Pass.UPDATE_ALL, null, SHOW_SUBSCRIBERS, GutterIconRenderer.Alignment.LEFT);
+          }
 
-        // Don't show event instantiations inside producers
-        PsiMethod method = PsiConsultantImpl.findMethod(element);
-        if (method != null && PsiConsultantImpl.hasAnnotation(method,
-            OttoProjectHandler.PRODUCER_CLASS_NAME)) {
-          return null;
-        }
-
-        if (ottoProjectHandler.isEventClass(className)) {
-          return new LineMarkerInfo<PsiNewExpression>(psiNewExpression, element.getTextRange(),
-              ICON, Pass.UPDATE_ALL, null, SHOW_SUBSCRIBERS, GutterIconRenderer.Alignment.LEFT);
         }
       }
     }
@@ -230,7 +223,6 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
   public static @Nullable PsiTypeElement getMethodParameter(PsiMethod subscribeMethod) {
     PsiParameterList parameterList = subscribeMethod.getParameterList();
     if (parameterList.getParametersCount() != 1) {
-      System.out.println("DEBUG: wha?");
       return null;
     } else {
       PsiParameter subscribeMethodParam = parameterList.getParameters()[0];
