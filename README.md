@@ -15,7 +15,7 @@ Plugin to navigate between events posted by [Otto][1].
 Download
 --------
 
-[Download](https://github.com/square/otto-intellij-plugin/blob/master/otto-intellij-plugin.zip?raw=true) the plugin and select `Install Plugin From Disk` in idea.
+[Download](https://github.com/square/otto-intellij-plugin/blob/master/otto-intellij-plugin.zip?raw=true) the plugin and select `Install Plugin From Disk` in IntelliJ.
 
 License
 =======
