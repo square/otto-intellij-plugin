@@ -15,7 +15,7 @@ Plugin to navigate between events posted by [Otto][1].
 Download
 --------
 
-[Download][2] the plugin zip and select "Install Plugin From Disk" in IntelliJ's plugin preferences.
+[Download][2] the plugin jar and select "Install Plugin From Disk" in IntelliJ's plugin preferences.
 
 License
 =======
