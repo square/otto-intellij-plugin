@@ -1,19 +1,20 @@
 <idea-plugin version="2">
-  <id>com.yourcompany.unique.plugin.id</id>
-  <name>Plugin display name here</name>
+  <id>com.squareup.ideaplugin.otto</id>
+  <name>Otto Plugin</name>
   <version>1.0</version>
-  <vendor email="support@yourcompany.com" url="http://www.yourcompany.com">YourCompany</vendor>
+  <vendor email="support@squareup.com" url="http://square.github.io">Square, Inc.</vendor>
 
   <description><![CDATA[
-      Enter short description for your plugin here.<br>
-      <small>most HTML tags may be used</small>
+    Provides actions which allow you quickly move around the event bus.
+    <ul>
+      <li><code>@Subscribe</code> to <code>@Produce</code> and calls to <code>post()</code></li>
+      <li><code>@Produce</code> to all <code>@Subscribe</code>s</li>
+    </ul>
       ]]></description>
 
   <change-notes><![CDATA[
-      Add change notes here.<br>
-      <small>most HTML tags may be used</small>
-      ]]>
-  </change-notes>
+    1.0.0: Initial version.
+  ]]></change-notes>
 
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
   <idea-version since-build="107.105"/>
