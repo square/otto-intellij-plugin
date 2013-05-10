@@ -36,4 +36,4 @@ License
 
 
 [1]: http://square.github.io/otto/
-[2]: https://github.com/square/otto-intellij-plugin/blob/master/otto-intellij-plugin.zip?raw=true
+[2]: https://github.com/square/otto-intellij-plugin/blob/master/otto-intellij-plugin.jar?raw=true
