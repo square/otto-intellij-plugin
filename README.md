@@ -3,6 +3,14 @@ Otto IntelliJ Plugin
 
 Plugin to navigate between events posted by [Otto][1].
 
+### @Produce to @Subscribe
+
+![provider-to-subscriber](./images/produce-to-subscribe.gif)
+
+### Event to @Subscribe
+
+![event-to-subscriber](./images/event-to-subscribe.gif)
+
 
 Download
 --------
