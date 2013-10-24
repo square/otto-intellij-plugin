@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.jetbrains.annotations.NotNull;
 
 public class OttoProjectHandler extends AbstractProjectComponent {
@@ -52,6 +54,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
   private final Map<VirtualFile, Set<String>> fileToEventClasses = new HashMap<VirtualFile, Set<String>>();
   private final Set<VirtualFile> filesToScan = new HashSet<VirtualFile>();
   private final Set<String> allEventClasses = new HashSet<String>();
+  private final AtomicInteger startupScanAttemptsLeft = new AtomicInteger(5);
 
   public PsiTreeChangeAdapter listener;
 
@@ -141,14 +144,28 @@ public class OttoProjectHandler extends AbstractProjectComponent {
       options.searchScope = searchScope;
       FindUsagesManager.startProcessUsages(handler, descriptor, processor, options, new Runnable() {
         @Override public void run() {
-
-          optimizeEventClassIndex();
-          scheduleRefreshOfEventFiles();
+          int eventClassCount = optimizeEventClassIndex();
+          if (eventClassCount > 0) {
+            scheduleRefreshOfEventFiles();
+          } else {
+            maybeScheduleAnotherSearch();
+          }
 
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("Searched for @Subscribe in %s in %dms",
                 searchScope, System.currentTimeMillis() - startTime));
           }
+        }
+      });
+    }
+  }
+
+  private void maybeScheduleAnotherSearch() {
+    if (startupScanAttemptsLeft.decrementAndGet() > 0) {
+      ApplicationManager.getApplication().invokeLater(new Runnable() {
+        @Override
+        public void run() {
+          findEventsViaMethodsAnnotatedSubscribe();
         }
       });
     }
@@ -192,7 +209,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
     optimizeEventClassIndex();
   }
 
-  private void optimizeEventClassIndex() {
+  private int optimizeEventClassIndex() {
     synchronized (allEventClasses) {
       allEventClasses.clear();
 
@@ -201,6 +218,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
           allEventClasses.addAll(strings);
         }
       }
+      return allEventClasses.size();
     }
   }
 
@@ -208,15 +226,19 @@ public class OttoProjectHandler extends AbstractProjectComponent {
     ApplicationManager.getApplication().invokeLater(new Runnable() {
       @Override
       public void run() {
-        PsiManager manager = PsiManager.getInstance(myProject);
+        Set<String> eventClasses;
+        synchronized (allEventClasses) {
+          eventClasses = new HashSet<String>(allEventClasses);
+        }
+        JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(myProject);
         DaemonCodeAnalyzer codeAnalyzer = DaemonCodeAnalyzer.getInstance(myProject);
-
-        synchronized (fileToEventClasses) {
-          for (VirtualFile virtualFile : fileToEventClasses.keySet()) {
-            PsiFile psiFile = manager.findFile(virtualFile);
-            if (psiFile == null) continue;
-            codeAnalyzer.restart(psiFile);
-          }
+        for (String eventClass : eventClasses) {
+          PsiClass eventPsiClass = javaPsiFacade.findClass(eventClass,
+                GlobalSearchScope.allScope(myProject));
+          if (eventPsiClass == null) continue;
+          PsiFile psiFile = eventPsiClass.getContainingFile();
+          if (psiFile == null) continue;
+          codeAnalyzer.restart(psiFile);
         }
       }
     });
