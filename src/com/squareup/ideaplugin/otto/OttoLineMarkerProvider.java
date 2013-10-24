@@ -208,8 +208,7 @@ public class OttoLineMarkerProvider implements LineMarkerProvider {
         if (psiMethod.equals(getOttoBusMethod(element))) {
           PsiType[] expressionTypes = expression.getArgumentList().getExpressionTypes();
           if (expressionTypes.length > 0) {
-            PsiClass eventClass = PsiConsultantImpl.getClass(expressionTypes[0]);
-            return new LineMarkerInfo<PsiElement>(eventClass, element.getTextRange(), ICON,
+            return new LineMarkerInfo<PsiElement>(element, element.getTextRange(), ICON,
                 Pass.UPDATE_ALL, null, SHOW_SUBSCRIBERS, GutterIconRenderer.Alignment.LEFT);
           }
 
