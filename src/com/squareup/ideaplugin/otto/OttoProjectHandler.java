@@ -43,9 +43,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jetbrains.annotations.NotNull;
 
 public class OttoProjectHandler extends AbstractProjectComponent {
-  public static final String SUBSCRIBE_CLASS_NAME = "com.squareup.otto.Subscribe";
-  public static final String PRODUCER_CLASS_NAME = "com.squareup.otto.Produce";
-  public static final String BUS_CLASS_NAME = "com.squareup.otto.Bus";
 
   private static final Key<OttoProjectHandler> KEY = Key.create(OttoProjectHandler.class.getName());
   public static final Logger LOGGER = Logger.getInstance(OttoProjectHandler.class);
@@ -101,15 +98,18 @@ public class OttoProjectHandler extends AbstractProjectComponent {
   }
 
   private void findEventsViaMethodsAnnotatedSubscribe() {
-    performSearch(ProjectScope.getProjectScope(myProject));
+    GlobalSearchScope projectScope = ProjectScope.getProjectScope(myProject);
+    for (SubscriberMetadata subscriberMetadata : SubscriberMetadata.getAllSubscribers()) {
+      performSearch(projectScope, subscriberMetadata.getSubscriberAnnotationClassName());
+    }
   }
 
-  private void performSearch(final SearchScope searchScope) {
+  private void performSearch(final SearchScope searchScope, final String subscribeClassName) {
     JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(myProject);
-    PsiClass subscribePsiClass = javaPsiFacade.findClass(SUBSCRIBE_CLASS_NAME,
+    PsiClass subscribePsiClass = javaPsiFacade.findClass(subscribeClassName,
         GlobalSearchScope.allScope(myProject));
     if (subscribePsiClass == null) {
-      System.err.println("@Subscribe class not found.");
+      // the guava or otto library isn't available in this project so do nothing
       return;
     }
 
@@ -127,8 +127,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
             if ((element = element.getContext()) instanceof PsiAnnotation) {
               if ((element = element.getContext()) instanceof PsiModifierList) {
                 if ((element = element.getContext()) instanceof PsiMethod) {
-                  if (PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element,
-                      SUBSCRIBE_CLASS_NAME) != null) {
+                  if (PsiConsultantImpl.hasAnnotation((PsiMethod) element, subscribeClassName)) {
                     maybeAddSubscriberMethod((PsiMethod) element);
                   }
                 }
@@ -176,8 +175,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
         psiFile.accept(new PsiRecursiveElementVisitor() {
           @Override public void visitElement(PsiElement element) {
             if (element instanceof PsiMethod
-                && PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element,
-                SUBSCRIBE_CLASS_NAME) != null) {
+                && SubscriberMetadata.isAnnotatedWithSubscriber((PsiMethod) element)) {
               maybeAddSubscriberMethod((PsiMethod) element);
             } else {
               super.visitElement(element);

@@ -23,9 +23,11 @@ public class PickAction {
     }
   }
 
-  public static void startPicker(RelativePoint relativePoint, final Callback callback) {
+  public static void startPicker(Type[] displayedTypes, RelativePoint relativePoint,
+                                 final Callback callback) {
+
     ListPopup listPopup = JBPopupFactory.getInstance()
-        .createListPopup(new BaseListPopupStep<Type>("Select Type", Type.values()) {
+        .createListPopup(new BaseListPopupStep<Type>("Select Type", displayedTypes) {
           @NotNull @Override public String getTextFor(Type value) {
             return value.toString();
           }
