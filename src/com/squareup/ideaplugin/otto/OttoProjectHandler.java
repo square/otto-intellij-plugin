@@ -1,5 +1,6 @@
 package com.squareup.ideaplugin.otto;
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.find.FindManager;
 import com.intellij.find.findUsages.FindUsagesHandler;
 import com.intellij.find.findUsages.FindUsagesManager;
@@ -101,7 +102,6 @@ public class OttoProjectHandler extends AbstractProjectComponent {
 
   private void findEventsViaMethodsAnnotatedSubscribe() {
     performSearch(ProjectScope.getProjectScope(myProject));
-    optimizeEventClassIndex();
   }
 
   private void performSearch(final SearchScope searchScope) {
@@ -142,6 +142,10 @@ public class OttoProjectHandler extends AbstractProjectComponent {
       options.searchScope = searchScope;
       FindUsagesManager.startProcessUsages(handler, descriptor, processor, options, new Runnable() {
         @Override public void run() {
+
+          optimizeEventClassIndex();
+          scheduleRefreshOfEventFiles();
+
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("Searched for @Subscribe in %s in %dms",
                 searchScope, System.currentTimeMillis() - startTime));
@@ -200,6 +204,24 @@ public class OttoProjectHandler extends AbstractProjectComponent {
         }
       }
     }
+  }
+
+  private void scheduleRefreshOfEventFiles() {
+    ApplicationManager.getApplication().invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        PsiManager manager = PsiManager.getInstance(myProject);
+        DaemonCodeAnalyzer codeAnalyzer = DaemonCodeAnalyzer.getInstance(myProject);
+
+        synchronized (fileToEventClasses) {
+          for (VirtualFile virtualFile : fileToEventClasses.keySet()) {
+            PsiFile psiFile = manager.findFile(virtualFile);
+            if (psiFile == null) continue;
+            codeAnalyzer.restart(psiFile);
+          }
+        }
+      }
+    });
   }
 
   private void maybeAddSubscriberMethod(PsiMethod element) {
