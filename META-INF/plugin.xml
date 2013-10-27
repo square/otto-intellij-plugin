@@ -43,5 +43,6 @@
   <extensions defaultExtensionNs="com.intellij">
     <codeInsight.lineMarkerProvider language="JAVA"
         implementationClass="com.squareup.ideaplugin.otto.OttoLineMarkerProvider"/>
+    <implicitUsageProvider implementation="com.squareup.ideaplugin.otto.OttoImplicitUsageProvider"/>
   </extensions>
 </idea-plugin>
