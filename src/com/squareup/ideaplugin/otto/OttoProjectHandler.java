@@ -248,10 +248,15 @@ public class OttoProjectHandler extends AbstractProjectComponent {
     PsiTypeElement methodParameter = OttoLineMarkerProvider.getMethodParameter(element);
     if (methodParameter != null) {
       String canonicalText = methodParameter.getType().getCanonicalText();
-      VirtualFile virtualFile = methodParameter.getContainingFile().getVirtualFile();
-      synchronized (fileToEventClasses) {
-        Set<String> eventClasses = getEventClasses(virtualFile);
-        eventClasses.add(canonicalText);
+      PsiFile containingFile = methodParameter.getContainingFile();
+      if (containingFile != null) {
+        VirtualFile virtualFile = containingFile.getVirtualFile();
+        if (virtualFile != null) {
+          synchronized (fileToEventClasses) {
+            Set<String> eventClasses = getEventClasses(virtualFile);
+            eventClasses.add(canonicalText);
+          }
+        }
       }
     }
   }

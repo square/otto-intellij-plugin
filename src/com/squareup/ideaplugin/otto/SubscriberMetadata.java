@@ -30,13 +30,16 @@ public class SubscriberMetadata {
   }
 
   public static boolean isBusPostMethod(PsiMethod candidate, Project project) {
-    if (!candidate.getName().equals("post"))
-      return false; // it at least needs to be named post before bothering to do any more expensive analysis
+    // it at least needs to be named post before bothering to do any more expensive analysis
+    if (!candidate.getName().equals("post")) {
+      return false;
+    }
 
     for (SubscriberMetadata subscriber : subscribers) {
       PsiMethod busPostMethod = subscriber.getBusPostMethod(project);
-      if (candidate.equals(busPostMethod))
+      if (candidate.equals(busPostMethod)) {
         return true;
+      }
     }
     return false;
   }
@@ -47,8 +50,9 @@ public class SubscriberMetadata {
       PsiAnnotation annotation = PsiConsultantImpl.findAnnotationOnMethod(method,
           info.getSubscriberAnnotationClassName());
 
-      if (annotation != null)
+      if (annotation != null) {
         return info;
+      }
     }
     return null;
   }
@@ -59,14 +63,16 @@ public class SubscriberMetadata {
 
   public static boolean isAnnotatedWithProducer(PsiMethod method) {
     for (SubscriberMetadata info : subscribers) {
-      if (info.getProducerClassName() == null)
+      if (info.getProducerClassName() == null) {
         continue;
+      }
 
       PsiAnnotation annotation = PsiConsultantImpl.findAnnotationOnMethod(method,
           info.getProducerClassName());
 
-      if (annotation != null)
+      if (annotation != null) {
         return true;
+      }
     }
     return false;
   }
@@ -110,8 +116,9 @@ public class SubscriberMetadata {
     PsiClass busClass = javaPsiFacade.findClass(getBusClassName(), globalSearchScope);
     if (busClass != null) {
       for (PsiMethod psiMethod : busClass.getMethods()) {
-        if (psiMethod.getName().equals("post"))
+        if (psiMethod.getName().equals("post")) {
           return psiMethod;
+        }
       }
     }
     return null;
