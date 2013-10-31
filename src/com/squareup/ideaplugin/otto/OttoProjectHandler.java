@@ -1,5 +1,6 @@
 package com.squareup.ideaplugin.otto;
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.find.FindManager;
 import com.intellij.find.findUsages.FindUsagesHandler;
 import com.intellij.find.findUsages.FindUsagesManager;
@@ -39,12 +40,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.jetbrains.annotations.NotNull;
 
 public class OttoProjectHandler extends AbstractProjectComponent {
-  public static final String SUBSCRIBE_CLASS_NAME = "com.squareup.otto.Subscribe";
-  public static final String PRODUCER_CLASS_NAME = "com.squareup.otto.Produce";
-  public static final String BUS_CLASS_NAME = "com.squareup.otto.Bus";
 
   private static final Key<OttoProjectHandler> KEY = Key.create(OttoProjectHandler.class.getName());
   public static final Logger LOGGER = Logger.getInstance(OttoProjectHandler.class);
@@ -54,6 +54,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
   private final Map<VirtualFile, Set<String>> fileToEventClasses = new HashMap<VirtualFile, Set<String>>();
   private final Set<VirtualFile> filesToScan = new HashSet<VirtualFile>();
   private final Set<String> allEventClasses = new HashSet<String>();
+  private final AtomicInteger startupScanAttemptsLeft = new AtomicInteger(5);
 
   public PsiTreeChangeAdapter listener;
 
@@ -100,16 +101,18 @@ public class OttoProjectHandler extends AbstractProjectComponent {
   }
 
   private void findEventsViaMethodsAnnotatedSubscribe() {
-    performSearch(ProjectScope.getProjectScope(myProject));
-    optimizeEventClassIndex();
+    GlobalSearchScope projectScope = ProjectScope.getProjectScope(myProject);
+    for (SubscriberMetadata subscriberMetadata : SubscriberMetadata.getAllSubscribers()) {
+      performSearch(projectScope, subscriberMetadata.getSubscriberAnnotationClassName());
+    }
   }
 
-  private void performSearch(final SearchScope searchScope) {
+  private void performSearch(final SearchScope searchScope, final String subscribeClassName) {
     JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(myProject);
-    PsiClass subscribePsiClass = javaPsiFacade.findClass(SUBSCRIBE_CLASS_NAME,
+    PsiClass subscribePsiClass = javaPsiFacade.findClass(subscribeClassName,
         GlobalSearchScope.allScope(myProject));
     if (subscribePsiClass == null) {
-      System.err.println("@Subscribe class not found.");
+      // the guava or otto library isn't available in this project so do nothing
       return;
     }
 
@@ -127,8 +130,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
             if ((element = element.getContext()) instanceof PsiAnnotation) {
               if ((element = element.getContext()) instanceof PsiModifierList) {
                 if ((element = element.getContext()) instanceof PsiMethod) {
-                  if (PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element,
-                      SUBSCRIBE_CLASS_NAME) != null) {
+                  if (PsiConsultantImpl.hasAnnotation((PsiMethod) element, subscribeClassName)) {
                     maybeAddSubscriberMethod((PsiMethod) element);
                   }
                 }
@@ -142,10 +144,28 @@ public class OttoProjectHandler extends AbstractProjectComponent {
       options.searchScope = searchScope;
       FindUsagesManager.startProcessUsages(handler, descriptor, processor, options, new Runnable() {
         @Override public void run() {
+          int eventClassCount = optimizeEventClassIndex();
+          if (eventClassCount > 0) {
+            scheduleRefreshOfEventFiles();
+          } else {
+            maybeScheduleAnotherSearch();
+          }
+
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("Searched for @Subscribe in %s in %dms",
                 searchScope, System.currentTimeMillis() - startTime));
           }
+        }
+      });
+    }
+  }
+
+  private void maybeScheduleAnotherSearch() {
+    if (startupScanAttemptsLeft.decrementAndGet() > 0) {
+      ApplicationManager.getApplication().invokeLater(new Runnable() {
+        @Override
+        public void run() {
+          findEventsViaMethodsAnnotatedSubscribe();
         }
       });
     }
@@ -172,8 +192,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
         psiFile.accept(new PsiRecursiveElementVisitor() {
           @Override public void visitElement(PsiElement element) {
             if (element instanceof PsiMethod
-                && PsiConsultantImpl.findAnnotationOnMethod((PsiMethod) element,
-                SUBSCRIBE_CLASS_NAME) != null) {
+                && SubscriberMetadata.isAnnotatedWithSubscriber((PsiMethod) element)) {
               maybeAddSubscriberMethod((PsiMethod) element);
             } else {
               super.visitElement(element);
@@ -190,7 +209,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
     optimizeEventClassIndex();
   }
 
-  private void optimizeEventClassIndex() {
+  private int optimizeEventClassIndex() {
     synchronized (allEventClasses) {
       allEventClasses.clear();
 
@@ -199,17 +218,45 @@ public class OttoProjectHandler extends AbstractProjectComponent {
           allEventClasses.addAll(strings);
         }
       }
+      return allEventClasses.size();
     }
+  }
+
+  private void scheduleRefreshOfEventFiles() {
+    ApplicationManager.getApplication().invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        Set<String> eventClasses;
+        synchronized (allEventClasses) {
+          eventClasses = new HashSet<String>(allEventClasses);
+        }
+        JavaPsiFacade javaPsiFacade = JavaPsiFacade.getInstance(myProject);
+        DaemonCodeAnalyzer codeAnalyzer = DaemonCodeAnalyzer.getInstance(myProject);
+        for (String eventClass : eventClasses) {
+          PsiClass eventPsiClass = javaPsiFacade.findClass(eventClass,
+                GlobalSearchScope.allScope(myProject));
+          if (eventPsiClass == null) continue;
+          PsiFile psiFile = eventPsiClass.getContainingFile();
+          if (psiFile == null) continue;
+          codeAnalyzer.restart(psiFile);
+        }
+      }
+    });
   }
 
   private void maybeAddSubscriberMethod(PsiMethod element) {
     PsiTypeElement methodParameter = OttoLineMarkerProvider.getMethodParameter(element);
     if (methodParameter != null) {
       String canonicalText = methodParameter.getType().getCanonicalText();
-      VirtualFile virtualFile = methodParameter.getContainingFile().getVirtualFile();
-      synchronized (fileToEventClasses) {
-        Set<String> eventClasses = getEventClasses(virtualFile);
-        eventClasses.add(canonicalText);
+      PsiFile containingFile = methodParameter.getContainingFile();
+      if (containingFile != null) {
+        VirtualFile virtualFile = containingFile.getVirtualFile();
+        if (virtualFile != null) {
+          synchronized (fileToEventClasses) {
+            Set<String> eventClasses = getEventClasses(virtualFile);
+            eventClasses.add(canonicalText);
+          }
+        }
       }
     }
   }
