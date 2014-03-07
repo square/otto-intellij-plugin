@@ -17,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 public class SubscriberMetadata {
 
   private static final ImmutableSet<SubscriberMetadata> subscribers = ImmutableSet.of(
-
       new SubscriberMetadata("com.squareup.otto.Subscribe", "com.squareup.otto.Bus", "com.squareup.otto.Produce",
           PickAction.Type.PRODUCER, PickAction.Type.EVENT_POST),
 
