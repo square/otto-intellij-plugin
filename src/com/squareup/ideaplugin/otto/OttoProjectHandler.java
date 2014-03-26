@@ -142,7 +142,7 @@ public class OttoProjectHandler extends AbstractProjectComponent {
       };
       JavaClassFindUsagesOptions options = new JavaClassFindUsagesOptions(myProject);
       options.searchScope = searchScope;
-      FindUsagesManager.startProcessUsages(handler, descriptor, processor, options, new Runnable() {
+      FindUsagesManager.startProcessUsages(handler, handler.getPrimaryElements(), handler.getSecondaryElements(), processor, options, new Runnable() {
         @Override public void run() {
           int eventClassCount = optimizeEventClassIndex();
           if (eventClassCount > 0) {
