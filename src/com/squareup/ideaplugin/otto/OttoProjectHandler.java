@@ -10,6 +10,7 @@ import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.AbstractProjectComponent;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.util.Key;
@@ -80,21 +81,14 @@ public class OttoProjectHandler extends AbstractProjectComponent {
   }
 
   @Override public void projectOpened() {
-    final AtomicBoolean hasRun = new AtomicBoolean(false);
-
-    ApplicationManager.getApplication().invokeLater(
+    DumbService.getInstance(myProject).smartInvokeLater(
         new Runnable() {
           @Override public void run() {
             if (myProject.isInitialized()) {
-              hasRun.set(true);
               findEventsViaMethodsAnnotatedSubscribe();
 
               psiManager.addPsiTreeChangeListener(listener = new MyPsiTreeChangeAdapter());
             }
-          }
-        }, new Condition() {
-          @Override public boolean value(Object o) {
-            return hasRun.get();
           }
         }
     );
